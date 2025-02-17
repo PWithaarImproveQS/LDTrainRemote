@@ -1,21 +1,24 @@
 #include <Lpf2Hub.h>      //legoino
 #include <Lpf2HubConst.h> //legoino
 #include <Bounce2.h>      //bounce2
+#include <Arduino.h>
 
 Lpf2Hub myHub;
 byte port = (byte)PoweredUpHubPort::A;
 
 //Pin declaration
-#define BTN_MUSIC 25
-#define BTN_LICHT 26
-#define BTN_WASSER 27
-#define BTN_STOP 14
-#define PTI_SPEED 15
+#define BTN_MUSIC 1
+#define BTN_LIGHT 2
+#define BTN_WATER 3
+#define BTN_STOP 4
+#define BTN_SWITCH 44
+#define PTI_SPEED A5
 
 Bounce pbMusic = Bounce();
 Bounce pbLight = Bounce();
 Bounce pbWater = Bounce();
 Bounce pbStop = Bounce();
+Bounce pbSwitch = Bounce();
 int gLastStatePtiSpeed = 0;
 
 static int gLightOn = 0;
@@ -28,15 +31,18 @@ void handlePoti()
   gLastStatePtiSpeed = ptiSpeed;
   //Serial.println(ptiSpeed);
   int speed = 0;
-  if ( ptiSpeed > 1100) speed = 64;     //Fast foreward
-  else if (ptiSpeed > 800) speed = 32;  //normal forweard
-  else if (ptiSpeed > 600) speed = 16;  //slow forefard (might not work on low battery) 
-  else if (ptiSpeed > 400) speed = 0;   //stop
-  else if (ptiSpeed > 200) speed = -32; //slow backward
-  else speed = -64;                     //fast foreward
+  if (ptiSpeed > 3500) speed = 64;     // Fast forward
+  else if (ptiSpeed > 3000) speed = 32; // Normal forward
+  else if (ptiSpeed > 2000) speed = 16; // Slow forward (might not work on low battery)
+  else if (ptiSpeed > 1000) speed = 0;  // Stop
+  else if (ptiSpeed > 500) speed = -32; // Slow backward
+  else speed = -64;                     // Fast backward
+
 
   if(speed != gSpeed)
   { 
+    Serial.print("Speed changed ");
+    Serial.println(speed);
     if(gSpeed == 0 && speed > 0)
     {
         myHub.playSound((byte)DuploTrainBaseSound::STATION_DEPARTURE);
@@ -67,6 +73,17 @@ Color getNextColor()
 
 void handleButtons()
 {
+  if (pbSwitch.update())
+
+  {
+    if (pbSwitch.fell())
+    {
+      Serial.println("Right");
+    } else
+    {
+      Serial.println("Left");
+    }
+  }
   if(pbMusic.update())
   {
     if(pbMusic.fell())
@@ -104,17 +121,22 @@ void handleButtons()
 
 void setup() {
   Serial.begin(115200);
+  delay(2500);  
+  
+  Serial.println("Init Start");
   //define Pin Modes
-  pbMusic.attach(BTN_MUSIC, INPUT_PULLUP);
-  pbLight.attach(BTN_LICHT, INPUT_PULLUP);
-  pbWater.attach(BTN_WASSER, INPUT_PULLUP);
-  pbStop.attach(BTN_STOP, INPUT_PULLUP);
 
+  pbMusic.attach(BTN_MUSIC, INPUT_PULLUP);
+  pbLight.attach(BTN_LIGHT, INPUT_PULLUP);
+  pbWater.attach(BTN_WATER, INPUT_PULLUP);
+  pbStop.attach(BTN_STOP, INPUT_PULLUP);
+  pbSwitch.attach(BTN_SWITCH, INPUT_PULLUP);
+  
+  Serial.println("Init Done");
   myHub.init();
 }
 
 void loop() {
-
     if (myHub.isConnecting()) {
         myHub.connectHub();
         if (myHub.isConnected()) {
