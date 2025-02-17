@@ -1,7 +1,13 @@
+#include <Arduino.h>
+
 #include <Lpf2Hub.h>      //legoino
 #include <Lpf2HubConst.h> //legoino
 #include <Bounce2.h>      //bounce2
-#include <Arduino.h>
+
+#include <Adafruit_GFX.h>
+#include <Adafruit_NeoMatrix.h>
+#include <Adafruit_NeoPixel.h>
+
 
 Lpf2Hub myHub;
 byte port = (byte)PoweredUpHubPort::A;
@@ -13,6 +19,7 @@ byte port = (byte)PoweredUpHubPort::A;
 #define BTN_STOP 4
 #define BTN_SWITCH 44
 #define PTI_SPEED A5
+#define LED_MATRIX 5
 
 Bounce pbMusic = Bounce();
 Bounce pbLight = Bounce();
@@ -24,6 +31,15 @@ int gLastStatePtiSpeed = 0;
 static int gLightOn = 0;
 static short gColor = NONE;
 static int gSpeed =0;
+
+Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(8, 8, LED_MATRIX,
+  NEO_MATRIX_TOP     + NEO_MATRIX_RIGHT +
+  NEO_MATRIX_COLUMNS + NEO_MATRIX_PROGRESSIVE,
+  NEO_GRB            + NEO_KHZ800);
+
+const uint16_t colors[] = {
+    matrix.Color(255, 0, 0), matrix.Color(0, 255, 0), matrix.Color(0, 0, 255) };
+  
 
 void handlePoti()
 {
@@ -131,10 +147,18 @@ void setup() {
   pbWater.attach(BTN_WATER, INPUT_PULLUP);
   pbStop.attach(BTN_STOP, INPUT_PULLUP);
   pbSwitch.attach(BTN_SWITCH, INPUT_PULLUP);
+
+  matrix.begin();
+  matrix.setTextWrap(false);
+  matrix.setBrightness(10);
+  matrix.setTextColor(colors[0]);
   
   Serial.println("Init Done");
   myHub.init();
 }
+
+int x    = matrix.width();
+int pass = 0;
 
 void loop() {
     if (myHub.isConnecting()) {
@@ -149,5 +173,15 @@ void loop() {
         handleButtons();
         handlePoti();
     } 
+
+    matrix.fillScreen(0);
+    matrix.setCursor(x, 0);
+    matrix.print(F("LEGO Duplo Train Controller"));
+    if(--x < -216) {
+      x = matrix.width();
+      if(++pass >= 3) pass = 0;
+      matrix.setTextColor(colors[pass]);
+    }
+    matrix.show();
     delay(50);
 }
