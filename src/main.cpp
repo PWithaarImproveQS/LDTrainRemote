@@ -17,6 +17,8 @@ byte port = (byte)PoweredUpHubPort::A;
 #define BTN_LIGHT 2
 #define BTN_WATER 3
 #define BTN_STOP 4
+#define BTN_BLACK 8
+#define BTN_DIRECTION 43
 #define BTN_SWITCH 44
 #define PTI_SPEED A5
 #define LED_MATRIX 5
@@ -25,7 +27,10 @@ Bounce pbMusic = Bounce();
 Bounce pbLight = Bounce();
 Bounce pbWater = Bounce();
 Bounce pbStop = Bounce();
-Bounce pbSwitch = Bounce();
+Bounce pbDirectionSwitch = Bounce();
+Bounce pbSpeedModeSwitch = Bounce();
+
+bool DirectionSwitchState = true;
 int gLastStatePtiSpeed = 0;
 
 static int gLightOn = 0;
@@ -40,35 +45,64 @@ Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(8, 8, LED_MATRIX,
 const uint16_t colors[] = {
     matrix.Color(255, 0, 0), matrix.Color(0, 255, 0), matrix.Color(0, 0, 255) };
   
-
 void handlePoti()
 {
   int ptiSpeed = analogRead(PTI_SPEED);
   gLastStatePtiSpeed = ptiSpeed;
-  //Serial.println(ptiSpeed);
+
+
   int speed = 0;
-  if (ptiSpeed > 3500) speed = 64;     // Fast forward
-  else if (ptiSpeed > 3000) speed = 32; // Normal forward
-  else if (ptiSpeed > 2000) speed = 16; // Slow forward (might not work on low battery)
-  else if (ptiSpeed > 1000) speed = 0;  // Stop
-  else if (ptiSpeed > 500) speed = -32; // Slow backward
-  else speed = -64;                     // Fast backward
+  // Serial.print("PTI Speed: ");
+  // Serial.println(ptiSpeed);
+  if (pbSpeedModeSwitch.read() == HIGH) {
+    // Speed mode switch is HIGH, use the first half for reverse and second half for forward
+    if ((ptiSpeed > 2500) && (ptiSpeed < 3000))
+    {
+      speed = 0;
+    } else if (ptiSpeed <= 2970) {
+      // Map ptiSpeed (0 to 2048) to speed (0 to -64) in steps of 8
+      speed = map(ptiSpeed, 2770, 1920, 0, -64);
+    } else {
+      // Map ptiSpeed (2048 to 4096) to speed (0 to 64) in steps of 8
+      speed = map(ptiSpeed, 2770, 4000, 0, 64);
+    }
 
+  } else {
+    // Speed mode switch is LOW, use the direction switch logic
+    // Map ptiSpeed (0 to 4096) to speed (0 to 64) in steps of 8
+    speed = map(ptiSpeed, 1920, 4000, 0, 64);
+    if (ptiSpeed < 2200)
+    {
+      speed = 0;
+    }
+    
+    // Check the state of pbDirectionSwitch to determine if speed should be positive or negative
+    if (DirectionSwitchState) {
+      // Positive speed
+      Serial.println("Direction switch is HIGH, setting positive speed");
+    } else {
+      // Negative speed
+      speed = -speed;
+      Serial.println("Direction switch is LOW, setting negative speed");
+    }
 
-  if(speed != gSpeed)
+  }
+
+  if (speed != gSpeed)
   { 
-    Serial.print("Speed changed ");
-    Serial.println(speed);
-    if(gSpeed == 0 && speed > 0)
+    // Serial.print("Speed changed to: ");
+    // Serial.print(ptiSpeed);
+    // Serial.print(" -> ");
+    // Serial.println(speed);
+    if (gSpeed == 0 && speed > 0)
     {
         myHub.playSound((byte)DuploTrainBaseSound::STATION_DEPARTURE);
         delay(100);
     }
-    gSpeed =speed;
+    gSpeed = speed;
     myHub.setBasicMotorSpeed(port, speed);
   }
 }
-
 
 Color getNextColor()
 {
@@ -89,15 +123,23 @@ Color getNextColor()
 
 void handleButtons()
 {
-  if (pbSwitch.update())
-
+  if (pbDirectionSwitch.update())
   {
-    if (pbSwitch.fell())
+    if (pbDirectionSwitch.fell())
     {
-      Serial.println("Right");
+      DirectionSwitchState = !DirectionSwitchState;
+      Serial.println("Direction Change");
+
+    }
+  }
+  if (pbSpeedModeSwitch.update())
+  {
+    if (pbSpeedModeSwitch.fell())
+    {
+      Serial.println("Speed Modus Changed High");
     } else
     {
-      Serial.println("Left");
+      Serial.println("Speed Modus Changed Low");
     }
   }
   if(pbMusic.update())
@@ -146,11 +188,12 @@ void setup() {
   pbLight.attach(BTN_LIGHT, INPUT_PULLUP);
   pbWater.attach(BTN_WATER, INPUT_PULLUP);
   pbStop.attach(BTN_STOP, INPUT_PULLUP);
-  pbSwitch.attach(BTN_SWITCH, INPUT_PULLUP);
+  pbDirectionSwitch.attach(BTN_DIRECTION, INPUT_PULLUP);
+  pbSpeedModeSwitch.attach(BTN_SWITCH, INPUT_PULLUP);
 
   matrix.begin();
   matrix.setTextWrap(false);
-  matrix.setBrightness(10);
+  matrix.setBrightness(100);
   matrix.setTextColor(colors[0]);
   
   Serial.println("Init Done");
