@@ -17,11 +17,6 @@ WiFiServer telnetServer(23);
 WiFiClient telnetClient;
 bool useTelnet = true;
 
-
-
-
-
-
 Lpf2Hub myHub;
 byte port = (byte)PoweredUpHubPort::A;
 
