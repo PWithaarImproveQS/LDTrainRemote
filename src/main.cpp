@@ -17,7 +17,7 @@ WiFiServer telnetServer(23);
 WiFiClient telnetClient;
 bool useTelnet = true;
 
-Lpf2Hub myHub;
+Lpf2Hub orangeTrainHub;
 byte port = (byte)PoweredUpHubPort::A;
 
 // Pin declaration
@@ -141,16 +141,16 @@ void handlePoti()
     if (gSpeed == 0 && speed > 0)
     {
       
-        myHub.playSound((byte)DuploTrainBaseSound::STATION_DEPARTURE);
+        orangeTrainHub.playSound((byte)DuploTrainBaseSound::STATION_DEPARTURE);
         delay(100);
     }
     gSpeed = speed;
 
     if (TrainStopped)
     {
-      myHub.stopBasicMotor(port);
+      orangeTrainHub.stopBasicMotor(port);
     } else {
-      myHub.setBasicMotorSpeed(port, speed);
+      orangeTrainHub.setBasicMotorSpeed(port, speed);
     }
   }
 }
@@ -213,7 +213,7 @@ void handleButtons()
   {
     if(pbMusic.fell())
     {
-      myHub.playSound((byte)DuploTrainBaseSound::HORN);
+      orangeTrainHub.playSound((byte)DuploTrainBaseSound::HORN);
       delay(100);
       matrix.fillScreen(matrix.Color(255, 255, 0)); // Yellow
     }
@@ -223,7 +223,7 @@ void handleButtons()
     if(pbLight.fell())
     {
       Color color = getNextColor();
-      myHub.setLedColor(color);      
+      orangeTrainHub.setLedColor(color);      
       matrix.fillScreen(getColorRGB(color));
     }
   }
@@ -231,7 +231,7 @@ void handleButtons()
   {
     if(pbWater.fell())
     {
-      myHub.playSound((byte)DuploTrainBaseSound::WATER_REFILL);
+      orangeTrainHub.playSound((byte)DuploTrainBaseSound::WATER_REFILL);
       delay(100);
       matrix.fillScreen(matrix.Color(0, 0, 255)); // Blue
     }
@@ -243,11 +243,11 @@ void handleButtons()
     if(pbStop.pressed())
     {
       telnetClient.println("Stopped");
-      myHub.stopBasicMotor(port);
+      orangeTrainHub.stopBasicMotor(port);
       if (gSpeed != 0)
       {
         TrainStopped = true;
-        myHub.playSound((byte)DuploTrainBaseSound::BRAKE);
+        orangeTrainHub.playSound((byte)DuploTrainBaseSound::BRAKE);
         matrix.fillScreen(matrix.Color(255, 0, 0)); // Red
       } else
       {
@@ -263,6 +263,7 @@ void handleButtons()
     }
   }
 }
+
 
 void setup() {
   Serial.begin(115200);
@@ -331,9 +332,8 @@ void setup() {
   telnetServer.setNoDelay(true);
   matrix.setPixelColor(0, 0, 255, 0);
   logToAll("Init Done");
-  myHub.init(60000);
+  orangeTrainHub.init("60:77:71:8c:48:04", 60000); // Orange train
 
- 
 }
 
 int x    = matrix.width();
@@ -349,21 +349,24 @@ void loop() {
       telnetClient = telnetServer.available();
       telnetClient.flush();
       telnetClient.println("Connected to DuploTrainController");
-      logToAll("Custom log function test");
+      logToAll("Log started");
     }
   }
 
-  if (myHub.isConnecting()) {
-    myHub.connectHub();
-    if (myHub.isConnected()) {
+  if (orangeTrainHub.isConnecting()) {
+    orangeTrainHub.connectHub();
+    if (orangeTrainHub.isConnected()) {
       logToAll("We are now connected to the HUB");
       matrix.fillCircle(4, 4, 3, matrix.Color(0, 255, 0));
+      logToAll("We are connected to: %s", orangeTrainHub.getHubAddress().toString().c_str());
+      logToAll("Name: %s", orangeTrainHub.getHubName().c_str());
+      logToAll("Type: %d", (int)orangeTrainHub.getHubType());
     } else {
       logToAll("We have failed to connect to the HUB");
       matrix.fillCircle(4, 4, 3, matrix.Color(255, 0, 0));
     }
   }
-  if (myHub.isConnected()) {
+  if (orangeTrainHub.isConnected()) {
     handleButtons();
     handlePoti();
   }
