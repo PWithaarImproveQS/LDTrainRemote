@@ -7,7 +7,15 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_NeoMatrix.h>
 #include <Adafruit_NeoPixel.h>
+#include <WiFi.h>
+#include <WiFiMulti.h>
+#include <ArduinoOTA.h>
 
+
+#define WIFI_SSID "KruItbOsT"
+#define WIFI_PASS "zukweg-Zidpa5"
+
+WiFiMulti WiFiMulti;
 
 Lpf2Hub myHub;
 byte port = (byte)PoweredUpHubPort::A;
@@ -179,9 +187,54 @@ void handleButtons()
 
 void setup() {
   Serial.begin(115200);
-  delay(2500);  
-  
+  delay(10);  
+  matrix.begin();
+  matrix.setTextWrap(false);
+  matrix.setBrightness(10);
+  matrix.setTextColor(colors[0]);
+  matrix.fillScreen(0);
+  matrix.setPixelColor(0, 0, 0, 255);
+  matrix.show();
+
   Serial.println("Init Start");
+  WiFi.setHostname("DuploTrainController");
+
+  WiFiMulti.addAP(WIFI_SSID, WIFI_PASS);
+
+  Serial.print("\n\nWaiting for WiFi... ");
+
+  // WIFI Connection, Reboot after 30 attempts
+  uint8_t not_connected_counter = 0;
+  while (WiFiMulti.run() != WL_CONNECTED)
+  {
+    Serial.print(".");
+    delay(100);
+    not_connected_counter++;
+    if (not_connected_counter > 30)
+    {
+      Serial.println("Resetting due to Wifi not connecting...");
+      ESP.restart();
+    }
+  }
+
+
+
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.print("SSID: ");
+  Serial.println(WiFi.SSID());
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+  Serial.print("MAC address: ");
+  Serial.println(WiFi.macAddress());
+  Serial.print("Hostname: ");
+  Serial.println(WiFi.getHostname());
+
+  // OTA Configiration and Enable OTA
+  Serial.println("\nEnabling OTA Feature");
+  ArduinoOTA.setPassword("duplotrain");
+  ArduinoOTA.begin();
+
   //define Pin Modes
 
   pbMusic.attach(BTN_MUSIC, INPUT_PULLUP);
@@ -191,10 +244,7 @@ void setup() {
   pbDirectionSwitch.attach(BTN_DIRECTION, INPUT_PULLUP);
   pbSpeedModeSwitch.attach(BTN_SWITCH, INPUT_PULLUP);
 
-  matrix.begin();
-  matrix.setTextWrap(false);
-  matrix.setBrightness(100);
-  matrix.setTextColor(colors[0]);
+  
   
   Serial.println("Init Done");
   myHub.init();
@@ -204,6 +254,7 @@ int x    = matrix.width();
 int pass = 0;
 
 void loop() {
+  ArduinoOTA.handle();
     if (myHub.isConnecting()) {
         myHub.connectHub();
         if (myHub.isConnected()) {
